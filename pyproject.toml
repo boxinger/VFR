@@ -1,7 +1,28 @@
 [project]
 name = "vfr"
 version = "0.1.0"
-description = "Add your description here"
+description = "Interactive frequency-response controller designer"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "numpy>=2.4,<3",
+    "pyqtgraph>=0.13.7,<1",
+    "pyside6>=6.10,<7",
+]
+
+[project.scripts]
+vfr = "vfr.app:main"
+
+[build-system]
+requires = ["uv_build>=0.11.3,<0.12"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9,<10",
+    "pytest-qt>=4.5,<5",
+]
+
+[tool.pytest.ini_options]
+qt_api = "pyside6"
+testpaths = ["tests"]

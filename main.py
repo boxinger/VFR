@@ -1,5 +1,4 @@
-def main():
-    print("Hello from vfr!")
+from vfr.app import main
 
 
 if __name__ == "__main__":
