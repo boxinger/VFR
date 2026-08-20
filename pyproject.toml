@@ -5,6 +5,7 @@ description = "Interactive frequency-response controller designer"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "matplotlib>=3.10,<4",
     "numpy>=2.4,<3",
     "pyqtgraph>=0.13.7,<1",
     "pyside6>=6.10,<7",

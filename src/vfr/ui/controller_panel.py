@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 
 from vfr.analysis import LoopMetrics
 from vfr.models import ControllerElement, ControllerModel, ElementKind
-from vfr.ui.widgets import ScientificSpinBox
+from vfr.ui.widgets import ScientificSpinBox, TransferFunctionFormula
 
 
 class ControllerStore(QObject):
@@ -135,11 +135,17 @@ class ControllerPanel(QWidget):
         metrics_layout = QVBoxLayout(metrics_group)
         metrics_layout.addWidget(self.metrics_label)
 
+        explanation_group = QGroupBox("说明")
+        self.formula_widget = TransferFunctionFormula()
+        explanation_layout = QVBoxLayout(explanation_group)
+        explanation_layout.addWidget(self.formula_widget)
+
         layout = QVBoxLayout(self)
         layout.addWidget(gain_group)
         layout.addWidget(elements_group, 1)
         layout.addWidget(detail_group)
         layout.addWidget(metrics_group)
+        layout.addWidget(explanation_group)
 
         self.gain_k_spin.editingFinished.connect(self._gain_k_edited)
         self.gain_db_spin.editingFinished.connect(self._gain_db_edited)

@@ -4,12 +4,19 @@ from pathlib import Path
 
 import numpy as np
 import pyqtgraph as pg
-from PySide6.QtGui import QAction, QActionGroup
+from PySide6.QtCore import QEvent, Qt
+from PySide6.QtGui import QAction, QActionGroup, QKeyEvent
 from PySide6.QtWidgets import (
+    QAbstractSpinBox,
+    QApplication,
+    QComboBox,
     QFileDialog,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
+    QPlainTextEdit,
     QSplitter,
+    QTextEdit,
     QToolBar,
     QWidget,
 )
@@ -30,6 +37,8 @@ class MainWindow(QMainWindow):
         self.plant_response: FrequencyResponse | None = None
         self.loop_analysis: LoopAnalysis | None = None
         self._gain_drag_start_db = 0.0
+        self.current_mode = "pan"
+        self.mode_actions: dict[str, QAction] = {}
 
         self.store = ControllerStore(self)
         self.controller_panel = ControllerPanel(self.store)
@@ -52,6 +61,9 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(main_splitter)
 
         self._create_toolbar()
+        application = QApplication.instance()
+        if application is not None:
+            application.installEventFilter(self)
         self.statusBar().showMessage("请打开包含功率通路频率响应的 CSV")
 
         for panel in (self.plant_panel, self.controller_bode, self.loop_panel):
@@ -69,18 +81,20 @@ class MainWindow(QMainWindow):
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
 
-        open_action = QAction("打开 CSV", self)
+        open_action = QAction("打开 CSV [Q]", self)
         open_action.setShortcut("Ctrl+O")
+        open_action.setToolTip("打开 CSV（Q 或 Ctrl+O）")
         open_action.triggered.connect(self.open_csv)
+        self.open_action = open_action
         toolbar.addAction(open_action)
         toolbar.addSeparator()
 
         group = QActionGroup(self)
         group.setExclusive(True)
         for label, mode, checked in (
-            ("缩放/平移", "pan", True),
-            ("编辑零极点", "elements", False),
-            ("调整增益", "gain", False),
+            ("缩放/平移 [W]", "pan", True),
+            ("编辑零极点 [E]", "elements", False),
+            ("调整增益 [R]", "gain", False),
         ):
             action = QAction(label, self)
             action.setCheckable(True)
@@ -88,8 +102,54 @@ class MainWindow(QMainWindow):
             action.triggered.connect(lambda _checked, value=mode: self._set_mode(value))
             group.addAction(action)
             toolbar.addAction(action)
+            self.mode_actions[mode] = action
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802
+        if event.type() != QEvent.Type.KeyPress or not isinstance(event, QKeyEvent):
+            return super().eventFilter(watched, event)
+        if event.modifiers() != Qt.KeyboardModifier.NoModifier:
+            return super().eventFilter(watched, event)
+        input_types = (
+            QLineEdit,
+            QAbstractSpinBox,
+            QTextEdit,
+            QPlainTextEdit,
+            QComboBox,
+        )
+        target = watched if isinstance(watched, QWidget) else None
+        while target is not None:
+            if isinstance(target, input_types):
+                return super().eventFilter(watched, event)
+            target = target.parentWidget()
+        application = QApplication.instance()
+        if application is not None:
+            active_window = application.activeWindow()
+            if active_window is not None and active_window is not self:
+                return super().eventFilter(watched, event)
+            focus = application.focusWidget()
+            if isinstance(focus, input_types):
+                return super().eventFilter(watched, event)
+        if event.key() == Qt.Key.Key_Q:
+            self.open_csv()
+            event.accept()
+            return True
+        shortcut_actions = {
+            Qt.Key.Key_W: self.mode_actions["pan"],
+            Qt.Key.Key_E: self.mode_actions["elements"],
+            Qt.Key.Key_R: self.mode_actions["gain"],
+        }
+        action = shortcut_actions.get(event.key())
+        if action is None:
+            return super().eventFilter(watched, event)
+        action.trigger()
+        event.accept()
+        return True
 
     def _set_mode(self, mode: str) -> None:
+        self.current_mode = mode
+        action = self.mode_actions.get(mode)
+        if action is not None:
+            action.setChecked(True)
         pan = mode == "pan"
         for panel in (self.plant_panel, self.controller_bode, self.loop_panel):
             panel.set_pan_enabled(pan)

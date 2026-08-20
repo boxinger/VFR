@@ -2,6 +2,9 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from matplotlib.colors import to_hex
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QPalette
 
 from vfr.csv_import import ResponseRepresentation
 from vfr.models import ElementKind, FrequencyResponse
@@ -67,3 +70,49 @@ def test_main_window_updates_curves_markers_and_gain(qtbot) -> None:
     window._gain_drag_started()
     window._gain_dragged(6.0)
     assert window.store.model.gain_db == pytest.approx(6.0)
+
+
+def test_qwer_shortcuts_switch_modes_and_respect_numeric_input(qtbot, monkeypatch) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+    opened: list[bool] = []
+    monkeypatch.setattr(window, "open_csv", lambda: opened.append(True))
+
+    qtbot.keyClick(window, Qt.Key.Key_Q)
+    assert opened == [True]
+    qtbot.keyClick(window, Qt.Key.Key_E)
+    assert window.current_mode == "elements"
+    qtbot.keyClick(window, Qt.Key.Key_R)
+    assert window.current_mode == "gain"
+    qtbot.keyClick(window, Qt.Key.Key_W)
+    assert window.current_mode == "pan"
+
+    window.controller_panel.gain_k_spin.setFocus()
+    qtbot.keyClick(window.controller_panel.gain_k_spin, Qt.Key.Key_E)
+    assert window.current_mode == "pan"
+
+
+def test_formula_widget_renders_latex_mathtext(qtbot) -> None:
+    store = ControllerStore()
+    panel = ControllerPanel(store)
+    qtbot.addWidget(panel)
+    panel.formula_widget.draw()
+    assert panel.formula_widget.formula_artist.get_text().startswith("$C(s)=K\\frac")
+    assert "\\prod_i" in panel.formula_widget.formula_latex
+
+
+def test_formula_widget_follows_qt_palette(qtbot) -> None:
+    store = ControllerStore()
+    panel = ControllerPanel(store)
+    qtbot.addWidget(panel)
+    formula = panel.formula_widget
+    palette = panel.palette()
+    palette.setColor(QPalette.ColorRole.Window, QColor("#111820"))
+    palette.setColor(QPalette.ColorRole.WindowText, QColor("#edf4fb"))
+    panel.setPalette(palette)
+    formula._apply_qt_palette()
+    formula.draw()
+
+    assert to_hex(formula.figure.get_facecolor()) == "#111820"
+    assert formula.formula_artist.get_color() == "#edf4fb"

@@ -4,17 +4,75 @@ from collections.abc import Callable
 
 import numpy as np
 import pyqtgraph as pg
-from PySide6.QtCore import QPointF, Qt, Signal
-from PySide6.QtGui import QMouseEvent, QValidator
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
+from PySide6.QtCore import QEvent, QPointF, Qt, Signal
+from PySide6.QtGui import QMouseEvent, QPalette, QValidator
 from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QGridLayout,
     QLabel,
+    QApplication,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
 
 from vfr.models import ControllerElement, ElementKind
+
+
+class TransferFunctionFormula(FigureCanvasQTAgg):
+    formula_latex = (
+        r"$C(s)=K\frac{\prod_i\left(1+s/\omega_{z_i}\right)^{n_i}}"
+        r"{s^{n_0}\prod_k\left(1+s/\omega_{p_k}\right)^{m_k}}$"
+    )
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        figure = Figure(figsize=(5.6, 1.25), dpi=100)
+        super().__init__(figure)
+        self.setParent(parent)
+        self.setMinimumHeight(92)
+        self.setMaximumHeight(120)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.axes = figure.add_axes((0.0, 0.0, 1.0, 1.0))
+        self.axes.set_axis_off()
+        self.formula_artist = self.axes.text(
+            0.5,
+            0.5,
+            self.formula_latex,
+            ha="center",
+            va="center",
+            fontsize=21,
+            math_fontfamily="stix",
+        )
+        self._apply_qt_palette()
+
+    def _apply_qt_palette(self) -> None:
+        parent = self.parentWidget()
+        application = QApplication.instance()
+        if parent is not None:
+            palette = parent.palette()
+        elif application is not None:
+            palette = application.palette()
+        else:
+            palette = self.palette()
+        background = palette.color(QPalette.ColorRole.Window).name()
+        foreground = palette.color(QPalette.ColorRole.WindowText).name()
+        self.figure.set_facecolor(background)
+        self.axes.set_facecolor(background)
+        self.formula_artist.set_color(foreground)
+        self.draw_idle()
+
+    def changeEvent(self, event: QEvent) -> None:  # noqa: N802
+        super().changeEvent(event)
+        if event.type() in {
+            QEvent.Type.PaletteChange,
+            QEvent.Type.ApplicationPaletteChange,
+            QEvent.Type.StyleChange,
+            QEvent.Type.ThemeChange,
+            QEvent.Type.ParentChange,
+        } and hasattr(self, "formula_artist"):
+            self._apply_qt_palette()
 
 
 class ScientificSpinBox(QDoubleSpinBox):
