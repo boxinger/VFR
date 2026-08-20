@@ -23,8 +23,9 @@ from vfr.models import ControllerElement, ElementKind
 
 class TransferFunctionFormula(FigureCanvasQTAgg):
     formula_latex = (
-        r"$C(s)=K\frac{\prod_i\left(1+s/\omega_{z_i}\right)^{n_i}}"
-        r"{s^{n_0}\prod_k\left(1+s/\omega_{p_k}\right)^{m_k}}$"
+        r"$C(s)=K\frac{"
+        r"s^{n_d}\prod_j\left(1+s/\omega_{z_j}\right)^{m_{z_j}}}"
+        r"{s^{n_i}\prod_k\left(1+s/\omega_{p_k}\right)^{m_{p_k}}}$"
     )
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -42,7 +43,7 @@ class TransferFunctionFormula(FigureCanvasQTAgg):
             self.formula_latex,
             ha="center",
             va="center",
-            fontsize=21,
+            fontsize=12,
             math_fontfamily="stix",
         )
         self._apply_qt_palette()

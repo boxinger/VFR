@@ -98,8 +98,12 @@ def test_formula_widget_renders_latex_mathtext(qtbot) -> None:
     panel = ControllerPanel(store)
     qtbot.addWidget(panel)
     panel.formula_widget.draw()
-    assert panel.formula_widget.formula_artist.get_text().startswith("$C(s)=K\\frac")
-    assert "\\prod_i" in panel.formula_widget.formula_latex
+    formula = panel.formula_widget.formula_latex
+    assert formula.startswith("$C(s)=K")
+    assert r"s^{n_d}\prod_j" in formula
+    assert r"{s^{n_i}\prod_k" in formula
+    assert r"\prod_j" in formula
+    assert r"\omega_r" not in formula
 
 
 def test_formula_widget_follows_qt_palette(qtbot) -> None:
